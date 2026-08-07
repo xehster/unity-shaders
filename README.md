@@ -11,7 +11,7 @@ they're put together.
 |---|---|
 | **Shader Graph** | `Fire` · `Holographic` (+ `StripesHolo` subgraph) · `FireParticles` |
 | **Particle system** | `FireParticleSystem` prefab + its material |
-| **Hand-written (ShaderLab/HLSL)** | PS1 family · `ConcreteTriplanar` · `HeightFog` · `RetroDither` · `Hologram` · `MoveOutline` · `GradientSkybox` |
+| **Hand-written (ShaderLab/HLSL)** | PS1 family · `ConcreteTriplanar` · `HeightFog` · `RetroDither` · `Hologram` · `MoveOutline` · `GradientSkybox` · `GradientMap` (UI + mesh) |
 
 ---
 
@@ -185,6 +185,43 @@ the rim jitters with the mesh instead of sliding around it.
 
 ---
 
+## Gradient Map
+
+![Gradient Map](docs/gradient-map.gif)
+
+Recolours a picture by luminance. Each pixel's brightness picks a spot between a shadow
+colour and a light colour, so the shading an artist painted stays put while the hue gets
+replaced entirely. Much cleaner than tinting with a multiply, which turns deep tones to
+mud.
+
+The part I actually needed it for: black linework survives. Dark, desaturated pixels are
+left as they were, so an outline stays an outline instead of turning into the shadow
+colour. `_InkVal` sets how dark counts as ink and `_InkSat` how grey it has to be, both
+with a soft edge so antialiased lines don't tear.
+
+This one is for UGUI. It's built on Unity's UI-Default, so it keeps the stencil and clip
+rect that Images need, and it works on Overlay and Camera canvases alike.
+
+`Assets/Shaders/GradientMap.shader`
+
+---
+
+## Gradient Map (mesh)
+
+![Gradient Map on a mesh](docs/gradient-map-mesh.gif)
+
+Same recolour, same ink handling, but for geometry. The UI version is `Cull Off` with
+depth writes off and a transparent queue, which is exactly right on a flat Image and
+falls apart on a sphere: back faces draw over front ones and the silhouette tears. This
+one is opaque, single sided, writes depth and casts shadows.
+
+Worth knowing that the two are separate files with the same maths in them. Change a
+threshold in one and the other won't follow.
+
+`Assets/Shaders/GradientMapMesh.shader`
+
+---
+
 ## Atmosphere and full-screen passes
 
 Nothing to put on a sphere here, so no gifs.
@@ -213,6 +250,9 @@ dithered so it doesn't band.
 - `PS1LitChromatic` needs `PS1LitChromaticPass.hlsl` next to it.
 - `Hologram` and `MoveOutline` expect their tint through a MaterialPropertyBlock. Without
   one they still render, just in the default colour.
+- `GradientMap` is the only one here that isn't URP: it's built on Unity's built-in
+  UI-Default, because that's what a UGUI Image wants. Put it on Images, and use
+  `GradientMapMesh` for anything with geometry.
 
 ## Using them
 

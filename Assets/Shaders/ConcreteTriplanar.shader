@@ -1,8 +1,8 @@
 Shader "Custom/ConcreteTriplanar"
 {
-    // Триплanar (box-проекция) PBR-шейдер для URP.
-    // Повторяет материал из Blender: BaseColor*AO -> Lerp к белому, Roughness->Smoothness, Normal.
-    // Текстуру кладёт по мировым координатам, развёртка (UV) не нужна — работает на любых boolean-мешах.
+    // Triplanar (box projection) PBR shader for URP.
+    // Mirrors the Blender setup: BaseColor*AO -> lerp towards white, Roughness->Smoothness, Normal.
+    // Placed by world position, so no UV unwrap is needed - works on any boolean-heavy mesh.
     Properties
     {
         [MainTexture] _BaseColorMap ("Base Color", 2D) = "white" {}
@@ -10,22 +10,22 @@ Shader "Custom/ConcreteTriplanar"
         _RoughnessMap("Roughness (sRGB OFF)", 2D) = "gray" {}
         _AOMap       ("AO (sRGB OFF)", 2D) = "white" {}
 
-        _Tiling         ("Tiling (как Blender Scale)", Float) = 0.3
+        _Tiling         ("Tiling (Blender Scale)", Float) = 0.3
         _WhiteMix       ("White Mix", Range(0,1)) = 0.45
         _NormalStrength ("Normal Strength", Float) = 1.8
         _Sharpness      ("Triplanar Sharpness", Range(1,16)) = 4.0
         _Tint           ("Tint", Color) = (1,1,1,1)
         _VertexSnapPixels ("Vertex Grid Height (0 = off)", Float) = 240
 
-        // Object-space режим: текстура «приклеена» к мешу и вращается вместе с ним.
-        // Для статичной геометрии не нужен (мировая проекция бесшовна между объектами),
-        // но для вращающихся предметов только так видно, что они крутятся.
+        // Object-space mode: the texture sticks to the mesh and turns with it.
+        // Static geometry doesn't need it - world projection is seamless between objects -
+        // but on a spinning object it's the only way to tell that it's spinning at all.
         [Toggle(_OBJECT_SPACE_TRIPLANAR)] _ObjectSpaceTriplanar ("Project in Object Space", Float) = 0
         _ObjectTiling   ("Tiling in Object Space", Float) = 6.0
     }
 
-    // PS1-стиль: снап вершин к виртуальной пиксельной сетке (см. Purrfield/PS1 Lit).
-    // Текстуры триплanarные (мировые координаты), поэтому не "плывут" — дрожит только силуэт.
+    // PS1 look: vertices snap to a virtual pixel grid (see Purrfield/PS1 Lit).
+    // Textures are triplanar, so they don't swim - only the silhouette wobbles.
 
     SubShader
     {
@@ -41,7 +41,7 @@ Shader "Custom/ConcreteTriplanar"
             #pragma vertex vert
             #pragma fragment frag
 
-            // освещение/тени URP
+            // URP lighting and shadows
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
             #pragma multi_compile _ _ADDITIONAL_LIGHTS_VERTEX _ADDITIONAL_LIGHTS
             #pragma multi_compile_fragment _ _ADDITIONAL_LIGHT_SHADOWS
@@ -122,7 +122,7 @@ Shader "Custom/ConcreteTriplanar"
                 return OUT;
             }
 
-            // веса блендинга по граням куба
+            // blend weights per cube face
             float3 TriWeights(float3 n)
             {
                 float3 w = pow(abs(n), _Sharpness);
@@ -140,7 +140,7 @@ Shader "Custom/ConcreteTriplanar"
                 return cx * w.x + cy * w.y + cz * w.z;
             }
 
-            // триплanar нормаль (whiteout blend)
+            // triplanar normal, whiteout blend
             float3 SampleTriNormal(float3 wp, float3 geomN, float3 w, float tiling)
             {
                 float2 uvX = wp.zy * tiling;
@@ -150,7 +150,7 @@ Shader "Custom/ConcreteTriplanar"
                 float3 ny = SAMPLE_TEXTURE2D(_NormalMap, sampler_NormalMap, uvY).rgb * 2.0 - 1.0;
                 float3 nz = SAMPLE_TEXTURE2D(_NormalMap, sampler_NormalMap, uvZ).rgb * 2.0 - 1.0;
                 nx.xy *= _NormalStrength; ny.xy *= _NormalStrength; nz.xy *= _NormalStrength;
-                // переориентируем тангент-нормали в мировые по осям
+                // reorient the tangent normals into world space per axis
                 float3 wnX = float3(nx.z * sign(geomN.x), nx.y, nx.x);
                 float3 wnY = float3(ny.x, ny.z * sign(geomN.y), ny.y);
                 float3 wnZ = float3(nz.x, nz.y, nz.z * sign(geomN.z));
@@ -163,8 +163,8 @@ Shader "Custom/ConcreteTriplanar"
                 float3 wp = IN.positionWS;
                 float3 geomN = normalize(IN.normalWS);
 
-                // В object-space режиме проецируем по координатам меша: текстура «прибита»
-                // к поверхности и вращается вместе с объектом.
+                // In object space we project by mesh coordinates, so the texture is pinned
+                // to the surface and turns with the object.
                 #if defined(_OBJECT_SPACE_TRIPLANAR)
                     float3 projP = IN.positionOS;
                     float3 projN = normalize(IN.normalOS);
@@ -182,13 +182,13 @@ Shader "Custom/ConcreteTriplanar"
                 float  rough   = SampleTriColor(TEXTURE2D_ARGS(_RoughnessMap, sampler_RoughnessMap), projP, w, tiling).r;
                 float  ao      = ao3.r;
 
-                // как в Blender: base*AO -> подмешать белый
+                // as in Blender: base*AO -> mix towards white
                 float3 albedo = baseCol * lerp(1.0, ao, 0.7);
                 albedo = lerp(albedo, float3(1,1,1), _WhiteMix) * _Tint.rgb;
 
                 float3 triNormal = SampleTriNormal(projP, projN, w, tiling);
                 #if defined(_OBJECT_SPACE_TRIPLANAR)
-                    // нормаль собрана в объектном пространстве — вернём её в мировое
+                    // the normal was assembled in object space, so put it back into world space
                     float3 normalWS = normalize(TransformObjectToWorldNormal(triNormal));
                 #else
                     float3 normalWS = triNormal;
@@ -218,7 +218,7 @@ Shader "Custom/ConcreteTriplanar"
             ENDHLSL
         }
 
-        // ---------------- Тени ----------------
+        // ---------------- Shadows ----------------
         Pass
         {
             Name "ShadowCaster"
@@ -302,7 +302,7 @@ Shader "Custom/ConcreteTriplanar"
             ENDHLSL
         }
 
-        // ---------------- DepthNormals (для SSAO) ----------------
+        // ---------------- DepthNormals (for SSAO) ----------------
         Pass
         {
             Name "DepthNormals"
