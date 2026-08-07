@@ -1,0 +1,21 @@
+# This repo is a set of assets, not a full Unity project — but if it ever gets
+# opened in the editor, these are what Unity would generate. Keep them out.
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+
+# Unity's own sample packages are not mine to redistribute
+[Aa]ssets/Samples/
+[Aa]ssets/Samples.meta
+
+# IDE / OS noise
+.vs/
+.idea/
+.vscode/
+*.csproj
+*.sln
+.DS_Store
+Thumbs.db
