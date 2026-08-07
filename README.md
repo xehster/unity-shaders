@@ -1,26 +1,33 @@
 # Unity Shaders
 
-A personal collection of Shader Graph shaders I built for my own Unity projects.
+**Three Shader Graph shaders and one particle system**, built for my own Unity projects.
 Kept here so I can reuse them instead of rebuilding them each time — and so anyone
 curious can see what they look like and how they're put together.
 
 **Unity 6** · Universal Render Pipeline · Shader Graph 17.0.3
 
+| | |
+|---|---|
+| **Shaders** | `Fire` · `Holographic` (+ `StripesHolo` subgraph) · `FireParticles` |
+| **Particle system** | `FireParticleSystem` prefab + its material |
+
 ---
 
-## Fire
+# Shaders
+
+## 1. Fire
 
 ![Fire shader](docs/fire-preview.gif)
 
 Turbulent flame surface — animated noise drives the flame shape, a colour ramp takes it
-from deep violet through magenta to white-hot highlights. Used as a surface material
-rather than a particle effect.
+from deep violet through magenta to white-hot highlights. Meant to be applied to geometry,
+not to particles.
 
 `Assets/Shaders/Fire.shadergraph`
 
 ---
 
-## Holographic
+## 2. Holographic
 
 ![Holographic shader](docs/holographic-preview.gif)
 
@@ -36,19 +43,24 @@ In a level, on a building:
 
 ---
 
-## Fire Particles
-
-![Fire particles driving a thruster](docs/fire-particles-in-scene.gif)
-
-The particle-facing version of the fire — additive, built to be driven by a particle
-system. Above it's running as a thruster jet; on its own it looks like this:
+## 3. Fire Particles
 
 ![Fire particles in isolation](docs/fire-particles-preview.gif)
 
+The particle-facing counterpart to the Fire shader — additive, driven by a flipbook and a
+noise displacement map, and built to be rendered by a particle system rather than on a mesh.
+
 `Assets/Shaders/FireParticles.shadergraph`
 
-The particle system itself is included as a prefab — emission curves, shape, lifetime and
-velocities are the part that actually makes it read as a jet:
+---
+
+# Particle system
+
+![Fire particles driving a thruster](docs/fire-particles-in-scene.gif)
+
+The Fire Particles shader above is what colours it; this prefab is what makes it move.
+Emission curves, shape, lifetime and velocities are the part that actually makes it read
+as a thruster jet.
 
 `Assets/ParticleSystem/FireParticleSystem.prefab` · `Assets/ParticleSystem/FireParticlesMaterial.mat`
 
@@ -74,11 +86,12 @@ in and the effect keeps working.
 2. Copy the `.shadergraph` files — **with their `.meta` files** — into your `Assets/`.
    `HolographicShader` needs `StripesHolo.ShaderSubGraph` alongside it.
 3. Create a material from each shader and assign it.
+4. For the particle system, drag the prefab in — it already points at its material.
 
 ## License
 
-MIT — the shaders, the subgraph and the particle system are mine; use them, change them,
-no attribution needed.
+MIT — the three shaders, the subgraph and the particle system are mine; use them, change
+them, no attribution needed.
 
 The two `placeholder_*` textures are **not** covered by that licence — they're web
 stand-ins so the effect renders on import. Swap them for your own before shipping
