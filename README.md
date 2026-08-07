@@ -8,8 +8,9 @@ curious can see what they look like and how they're put together.
 
 | | |
 |---|---|
-| **Shaders** | `Fire` · `Holographic` (+ `StripesHolo` subgraph) · `FireParticles` |
+| **Shader Graph** | `Fire` · `Holographic` (+ `StripesHolo` subgraph) · `FireParticles` |
 | **Particle system** | `FireParticleSystem` prefab + its material |
+| **Hand-written (ShaderLab/HLSL)** | PS1 family · `ConcreteTriplanar` · `HeightFog` · `RetroDither` · `Hologram` · `MoveOutline` · `GradientSkybox` |
 
 ---
 
@@ -78,6 +79,52 @@ They're stand-ins grabbed from around the web and are not mine to license — dr
 in and the effect keeps working.
 
 ---
+
+# Hand-written shaders (ShaderLab / HLSL)
+
+Written for an in-development project of mine with a "PS1 geometry, modern lighting"
+look. No Shader Graph here - plain ShaderLab with HLSL passes, URP forward path.
+
+## The PS1 family
+
+`PS1Lit` is the base: retro geometry artifacts on top of a full modern URP lit pass
+(realtime shadows, additional lights, fog, ambient SH, emission). Two artifacts do the
+work - vertices snap to a virtual low-res grid so the silhouette wobbles, and UVs are
+interpolated without perspective correction so textures warp across triangles. Both are
+dialled by `_VertexSnapPixels` and `_AffineAmount`, so you can go from subtle to full
+1996.
+
+| File | What it adds |
+|---|---|
+| `PS1Lit.shader` | the base lit shader |
+| `PS1LitTransparent.shader` | alpha-blended version for glass and crystal parts |
+| `PS1LitChromatic.shader` + `PS1LitChromaticPass.hlsl` | per-object chromatic aberration - two extra passes rewrite R and B shifted radially from screen center. Roughly 3x the raster cost, so it's for hero objects |
+
+## Surfaces and atmosphere
+
+| File | What it does |
+|---|---|
+| `ConcreteTriplanar.shader` | triplanar (box projection) PBR - textures are placed by world position, so no UV unwrap is needed. Handy on boolean-heavy meshes. Whiteout normal blending |
+| `HeightFog.shader` | analytic exponential height fog with drifting density pockets; fullscreen pass that runs before post so bloom and grading treat fog as part of the scene |
+| `GradientSkybox.shader` | sky gradient with a sun disc and horizon haze, dithered against banding |
+| `RetroDither.shader` | posterize per channel + 4x4 Bayer ordered dithering, full resolution, no downscaling |
+
+## Gameplay-facing
+
+| File | What it does |
+|---|---|
+| `Hologram.shader` | placement ghost - additive fresnel and scrolling scanlines, tinted by the placer (blue valid / red invalid); also drives the beam ribbon |
+| `MoveOutline.shader` | inverted-hull silhouette rim for a move/edit mode |
+
+Both keep the PS1 vertex snap so they jitter in step with everything else.
+
+## Notes before you drop these in
+
+- They target **URP forward**. `HeightFog` and `RetroDither` are fullscreen passes and
+  need a `FullScreenPassRendererFeature` on your renderer to do anything.
+- `PS1LitChromatic` needs `PS1LitChromaticPass.hlsl` next to it.
+- `Hologram` and `MoveOutline` expect their tint through a MaterialPropertyBlock; without
+  one they still render, just in the default color.
 
 ## Using them
 
