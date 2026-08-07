@@ -86,22 +86,22 @@ in and the effect keeps working.
 Written for an in-development project of mine with a "PS1 geometry, modern lighting"
 look. No Shader Graph here - plain ShaderLab with HLSL passes, URP forward path.
 
-Every gif below is the same bouncing sphere under the same light, so the shaders can be
-compared against each other rather than against a nice backdrop.
+Same sphere, same light in every gif below, so they can be compared to each other and not
+to a nice backdrop.
 
 ## PS1 Lit
 
 ![PS1 Lit](docs/ps1-lit.gif)
 
-The base of the family. Two artifacts do the work: vertices snap to a virtual low-res
-grid, so the silhouette wobbles as things move, and UVs are interpolated without
-perspective correction, so textures warp across long triangles. Everything under that is
-a normal URP lit pass - realtime shadows, additional lights, fog, ambient SH, emission.
+The one everything else is built on. Vertices snap to a virtual low-res grid so the
+silhouette wobbles when things move, and UVs skip perspective correction so textures warp
+across long triangles. Under that it's a normal URP lit pass, so shadows, extra lights,
+fog and emission all still work.
 
-`_VertexSnapPixels` is the grid height (240 looks right, 0 turns snapping off) and
-`_AffineAmount` fades the warp, so you can go from a hint of it to full 1996.
+I keep `_VertexSnapPixels` at 240 and `_AffineAmount` at 1 for full 1996. Both dial down
+if you want a hint of it instead, and zero on either turns that half off.
 
-The same shader with HDR emission, if you have bloom in your stack:
+Same shader with HDR emission, if you have bloom in your stack:
 
 ![PS1 Lit with emission](docs/ps1-lit-emissive.gif)
 
@@ -113,15 +113,16 @@ The same shader with HDR emission, if you have bloom in your stack:
 
 ![PS1 Lit Chromatic](docs/ps1-lit-chromatic.gif)
 
-Per-object chromatic aberration, and deliberately not a post effect: two extra passes
-(`PurrChromaR` and `PurrChromaB`) redraw the object with the red and blue channels pushed
-apart, so only materials on this shader get fringes while everything around them stays
-clean. They need a `RenderObjects` feature on your renderer filtering for those two pass
-names - without it the shader still renders, just without fringes.
+Colour fringing per object instead of across the whole screen. Two extra passes
+(`PurrChromaR` and `PurrChromaB`) redraw the mesh with red and blue pushed apart, so the
+thing I care about gets fringes and everything else in frame stays clean. They only run if
+the renderer has a `RenderObjects` feature filtering for those two pass names - miss that
+and this looks identical to plain PS1 Lit.
 
-The shift is zero at screen centre and grows towards the edges, like a real lens. An
-object framed dead centre shows almost nothing, which is worth knowing before you decide
-`_ChromaShift` is broken. Roughly 3x the raster cost, so it's for hero objects.
+The shift grows towards the edges of the screen and is zero dead centre, like a real lens.
+I spent a while cranking `_ChromaShift` up wondering why nothing was happening, on an
+object parked in the middle of the frame. It's about 3x the raster cost, so I only use it
+on things that matter.
 
 `Assets/Shaders/PS1LitChromatic.shader` · `Assets/Shaders/PS1LitChromaticPass.hlsl`
 
@@ -131,9 +132,8 @@ object framed dead centre shows almost nothing, which is worth knowing before yo
 
 ![PS1 Lit Transparent](docs/ps1-lit-transparent.gif)
 
-Alpha-blended sibling for glass, crystal and anything you want to see through. Standard
-`SrcAlpha OneMinusSrcAlpha` with depth writes off, alpha comes from `_BaseColor`, snap and
-warp behave exactly as in the base shader.
+For glass and anything else you need to see through. Alpha blended, no depth write, alpha
+comes off `_BaseColor`; snap and warp work the same as in the base shader.
 
 `Assets/Shaders/PS1LitTransparent.shader`
 
@@ -143,17 +143,17 @@ warp behave exactly as in the base shader.
 
 ![Concrete Triplanar](docs/concrete-triplanar.gif)
 
-Box projection blended by the surface normal, so no UV unwrap is needed - handy on meshes
-that came out of a pile of boolean operations. It rebuilds a Blender concrete setup: base
-colour times AO, lerped towards white, roughness into smoothness, whiteout normal blend.
+Box projection blended by the normal, so no UV unwrap. I wrote it for meshes that came out
+of a stack of booleans and had no sane way to unwrap them. It follows the concrete
+material I had in Blender: base colour times AO, lerped towards white, roughness into
+smoothness, whiteout normals.
 
-Projection is in world space by default. Textures stay put as objects move through them
-and neighbouring meshes line up seamlessly, which is what you want for architecture - but
-a rotating object just slides through a stationary pattern and reads as if it isn't
-turning at all. The `_OBJECT_SPACE_TRIPLANAR` keyword switches to mesh coordinates: the
-texture sticks to the surface and turns with it, which is what the gif above shows. Leave
-it off for anything with badly uneven scale, like floors and stretched cubes, or the
-texture smears along the long axis.
+World projection by default, which is what you want on walls and floors - the texture
+stays put and neighbouring meshes line up with no seam. The catch is that a spinning
+object slides through a pattern that isn't moving, so it reads as standing still. Turn on
+`_OBJECT_SPACE_TRIPLANAR` and the texture sticks to the mesh and turns with it, which is
+what the gif shows. Don't use it on anything with lopsided scale, it smears along the long
+axis.
 
 `Assets/Shaders/ConcreteTriplanar.shader`
 
@@ -163,10 +163,10 @@ texture smears along the long axis.
 
 ![Hologram](docs/hologram.gif)
 
-The placement ghost: additive fresnel with scanlines scrolling along world height. The
-placer tints it through a MaterialPropertyBlock - blue for a valid spot, red for a
-blocked one. `_BeamMode` reworks it for a LineRenderer ribbon, sending pulses along the
-length instead of scanlines, which is what the projector beam uses.
+The ghost preview you get while placing something. Additive fresnel with scanlines
+scrolling up world height; the placer tints it through a MaterialPropertyBlock, blue when
+the spot is fine and red when it isn't. `_BeamMode` swaps the scanlines for pulses running
+along the length, which is what I use on the LineRenderer beam.
 
 `Assets/Shaders/Hologram.shader`
 
@@ -176,10 +176,10 @@ length instead of scanlines, which is what the projector beam uses.
 
 ![Move Outline](docs/move-outline.gif)
 
-Classic inverted hull. The mesh is drawn a second time with front faces culled and
-vertices pushed out along their normals, so only a rim around the silhouette survives the
-depth test. Goes in a second material slot on top of the normal one, and keeps the same
-vertex snap so the rim jitters in step with the mesh instead of floating around it.
+Inverted hull, the old trick: draw the mesh again with front faces culled and vertices
+pushed out along their normals, and all that survives the depth test is a rim. It goes in
+a second material slot on top of the normal one. Same vertex snap as everything else, so
+the rim jitters with the mesh instead of sliding around it.
 
 `Assets/Shaders/MoveOutline.shader`
 
@@ -187,30 +187,31 @@ vertex snap so the rim jitters in step with the mesh instead of floating around 
 
 ## Atmosphere and full-screen passes
 
-These three don't sit on a mesh, so there's nothing to put on a sphere.
+Nothing to put on a sphere here, so no gifs.
 
-`HeightFog.shader` is analytic exponential height fog with drifting density pockets. It
-runs before post-processing, so bloom and grading treat the fog as part of the scene, and
-takes its colour from `RenderSettings.fogColor` - point a day/night script at that and the
-fog follows. `_DensityMultiplier` is left free for scripts; mine thins the fog while the
-player is indoors so the outdoor soup doesn't fill the rooms.
+`HeightFog.shader` - exponential height fog with drifting pockets of density. Runs before
+post so bloom and grading treat it as part of the scene, and takes its colour from
+`RenderSettings.fogColor`, so whatever drives your day/night cycle drives the fog too.
+`_DensityMultiplier` is free for scripts; I use it to thin the fog out while the player is
+indoors, otherwise the outdoor soup fills the rooms.
 
-`RetroDither.shader` posterizes each channel and lays a 4x4 Bayer pattern over the result,
-at full resolution with no downscaling. It runs after post-processing, so the film grade
-gets crushed along with everything else. If you record gifs of your game with this on:
-per-pixel noise changing every frame ruins GIF inter-frame compression, and adding a
-second dither in the palette pass only doubles the file size for no visible gain.
+`RetroDither.shader` - posterize per channel plus a 4x4 Bayer pattern, full res, no
+downscaling. It runs after post, so the film grade gets crushed along with everything
+else. One thing I learned recording gifs of this: noise that changes on every pixel every
+frame destroys GIF compression, and adding a second dither in the palette pass just
+doubles the file size.
 
-`GradientSkybox.shader` is a zenith / horizon / ground gradient with a sun disc and haze,
-dithered against banding.
+`GradientSkybox.shader` - zenith / horizon / ground gradient with a sun disc and haze,
+dithered so it doesn't band.
 
 ## Notes before you drop these in
 
 - They target **URP forward**. `HeightFog` and `RetroDither` need a
-  `FullScreenPassRendererFeature` on your renderer, and `PS1LitChromatic` needs a
-  `RenderObjects` feature pointed at its two pass names, or none of them do anything.
+  `FullScreenPassRendererFeature` on your renderer, `PS1LitChromatic` needs a
+  `RenderObjects` feature pointed at its two pass names, and without those they quietly
+  do nothing.
 - `PS1LitChromatic` needs `PS1LitChromaticPass.hlsl` next to it.
-- `Hologram` and `MoveOutline` expect their tint through a MaterialPropertyBlock; without
+- `Hologram` and `MoveOutline` expect their tint through a MaterialPropertyBlock. Without
   one they still render, just in the default colour.
 
 ## Using them
