@@ -1,8 +1,8 @@
 Shader "Custom/ConcreteTriplanar"
 {
-    // Triplanar (box projection) PBR shader for URP.
-    // Mirrors the Blender material: BaseColor*AO -> lerp toward white, Roughness->Smoothness, Normal.
-    // Textures are placed by world coordinates, so no UV unwrap is needed - works on any boolean mesh.
+    // Триплanar (box-проекция) PBR-шейдер для URP.
+    // Повторяет материал из Blender: BaseColor*AO -> Lerp к белому, Roughness->Smoothness, Normal.
+    // Текстуру кладёт по мировым координатам, развёртка (UV) не нужна — работает на любых boolean-мешах.
     Properties
     {
         [MainTexture] _BaseColorMap ("Base Color", 2D) = "white" {}
@@ -10,16 +10,22 @@ Shader "Custom/ConcreteTriplanar"
         _RoughnessMap("Roughness (sRGB OFF)", 2D) = "gray" {}
         _AOMap       ("AO (sRGB OFF)", 2D) = "white" {}
 
-        _Tiling         ("Tiling (Blender Scale equivalent)", Float) = 0.3
+        _Tiling         ("Tiling (как Blender Scale)", Float) = 0.3
         _WhiteMix       ("White Mix", Range(0,1)) = 0.45
         _NormalStrength ("Normal Strength", Float) = 1.8
         _Sharpness      ("Triplanar Sharpness", Range(1,16)) = 4.0
         _Tint           ("Tint", Color) = (1,1,1,1)
         _VertexSnapPixels ("Vertex Grid Height (0 = off)", Float) = 240
+
+        // Object-space режим: текстура «приклеена» к мешу и вращается вместе с ним.
+        // Для статичной геометрии не нужен (мировая проекция бесшовна между объектами),
+        // но для вращающихся предметов только так видно, что они крутятся.
+        [Toggle(_OBJECT_SPACE_TRIPLANAR)] _ObjectSpaceTriplanar ("Project in Object Space", Float) = 0
+        _ObjectTiling   ("Tiling in Object Space", Float) = 6.0
     }
 
-    // PS1 style: vertices snap to a virtual pixel grid (see Purrfield/PS1 Lit).
-    // Textures are triplanar (world space), so they don't swim - only the silhouette jitters.
+    // PS1-стиль: снап вершин к виртуальной пиксельной сетке (см. Purrfield/PS1 Lit).
+    // Текстуры триплanarные (мировые координаты), поэтому не "плывут" — дрожит только силуэт.
 
     SubShader
     {
@@ -35,7 +41,7 @@ Shader "Custom/ConcreteTriplanar"
             #pragma vertex vert
             #pragma fragment frag
 
-            // URP lighting and shadows
+            // освещение/тени URP
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
             #pragma multi_compile _ _ADDITIONAL_LIGHTS_VERTEX _ADDITIONAL_LIGHTS
             #pragma multi_compile_fragment _ _ADDITIONAL_LIGHT_SHADOWS
@@ -45,6 +51,7 @@ Shader "Custom/ConcreteTriplanar"
             #pragma multi_compile _ LIGHTMAP_ON
             #pragma multi_compile _ DIRLIGHTMAP_COMBINED
             #pragma multi_compile_fog
+            #pragma shader_feature_local _OBJECT_SPACE_TRIPLANAR
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
@@ -61,6 +68,7 @@ Shader "Custom/ConcreteTriplanar"
                 float _Sharpness;
                 float4 _Tint;
                 float _VertexSnapPixels;
+                float _ObjectTiling;
             CBUFFER_END
 
             float4 ApplyVertexSnap(float4 positionCS)
@@ -90,6 +98,10 @@ Shader "Custom/ConcreteTriplanar"
                 float3 normalWS   : TEXCOORD1;
                 float  fogFactor  : TEXCOORD2;
                 DECLARE_LIGHTMAP_OR_SH(lightmapUV, vertexSH, 3);
+                #if defined(_OBJECT_SPACE_TRIPLANAR)
+                    float3 positionOS : TEXCOORD4;
+                    float3 normalOS   : TEXCOORD5;
+                #endif
             };
 
             Varyings vert (Attributes IN)
@@ -100,41 +112,45 @@ Shader "Custom/ConcreteTriplanar"
                 OUT.positionCS = ApplyVertexSnap(p.positionCS);
                 OUT.positionWS = p.positionWS;
                 OUT.normalWS   = n.normalWS;
+                #if defined(_OBJECT_SPACE_TRIPLANAR)
+                    OUT.positionOS = IN.positionOS.xyz;
+                    OUT.normalOS   = IN.normalOS;
+                #endif
                 OUT.fogFactor  = ComputeFogFactor(p.positionCS.z);
                 OUTPUT_LIGHTMAP_UV(IN.lightmapUV, unity_LightmapST, OUT.lightmapUV);
                 OUTPUT_SH(OUT.normalWS, OUT.vertexSH);
                 return OUT;
             }
 
-            // blend weights per cube face
+            // веса блендинга по граням куба
             float3 TriWeights(float3 n)
             {
                 float3 w = pow(abs(n), _Sharpness);
                 return w / max(w.x + w.y + w.z, 1e-5);
             }
 
-            float3 SampleTriColor(TEXTURE2D_PARAM(tex, smp), float3 wp, float3 w)
+            float3 SampleTriColor(TEXTURE2D_PARAM(tex, smp), float3 wp, float3 w, float tiling)
             {
-                float2 uvX = wp.zy * _Tiling;
-                float2 uvY = wp.xz * _Tiling;
-                float2 uvZ = wp.xy * _Tiling;
+                float2 uvX = wp.zy * tiling;
+                float2 uvY = wp.xz * tiling;
+                float2 uvZ = wp.xy * tiling;
                 float3 cx = SAMPLE_TEXTURE2D(tex, smp, uvX).rgb;
                 float3 cy = SAMPLE_TEXTURE2D(tex, smp, uvY).rgb;
                 float3 cz = SAMPLE_TEXTURE2D(tex, smp, uvZ).rgb;
                 return cx * w.x + cy * w.y + cz * w.z;
             }
 
-            // triplanar normal (whiteout blend)
-            float3 SampleTriNormal(float3 wp, float3 geomN, float3 w)
+            // триплanar нормаль (whiteout blend)
+            float3 SampleTriNormal(float3 wp, float3 geomN, float3 w, float tiling)
             {
-                float2 uvX = wp.zy * _Tiling;
-                float2 uvY = wp.xz * _Tiling;
-                float2 uvZ = wp.xy * _Tiling;
+                float2 uvX = wp.zy * tiling;
+                float2 uvY = wp.xz * tiling;
+                float2 uvZ = wp.xy * tiling;
                 float3 nx = SAMPLE_TEXTURE2D(_NormalMap, sampler_NormalMap, uvX).rgb * 2.0 - 1.0;
                 float3 ny = SAMPLE_TEXTURE2D(_NormalMap, sampler_NormalMap, uvY).rgb * 2.0 - 1.0;
                 float3 nz = SAMPLE_TEXTURE2D(_NormalMap, sampler_NormalMap, uvZ).rgb * 2.0 - 1.0;
                 nx.xy *= _NormalStrength; ny.xy *= _NormalStrength; nz.xy *= _NormalStrength;
-                // reorient tangent-space normals into world space per axis
+                // переориентируем тангент-нормали в мировые по осям
                 float3 wnX = float3(nx.z * sign(geomN.x), nx.y, nx.x);
                 float3 wnY = float3(ny.x, ny.z * sign(geomN.y), ny.y);
                 float3 wnZ = float3(nz.x, nz.y, nz.z * sign(geomN.z));
@@ -146,18 +162,37 @@ Shader "Custom/ConcreteTriplanar"
             {
                 float3 wp = IN.positionWS;
                 float3 geomN = normalize(IN.normalWS);
-                float3 w = TriWeights(geomN);
 
-                float3 baseCol = SampleTriColor(TEXTURE2D_ARGS(_BaseColorMap, sampler_BaseColorMap), wp, w);
-                float3 ao3     = SampleTriColor(TEXTURE2D_ARGS(_AOMap, sampler_AOMap), wp, w);
-                float  rough   = SampleTriColor(TEXTURE2D_ARGS(_RoughnessMap, sampler_RoughnessMap), wp, w).r;
+                // В object-space режиме проецируем по координатам меша: текстура «прибита»
+                // к поверхности и вращается вместе с объектом.
+                #if defined(_OBJECT_SPACE_TRIPLANAR)
+                    float3 projP = IN.positionOS;
+                    float3 projN = normalize(IN.normalOS);
+                    float  tiling = _ObjectTiling;
+                #else
+                    float3 projP = wp;
+                    float3 projN = geomN;
+                    float  tiling = _Tiling;
+                #endif
+
+                float3 w = TriWeights(projN);
+
+                float3 baseCol = SampleTriColor(TEXTURE2D_ARGS(_BaseColorMap, sampler_BaseColorMap), projP, w, tiling);
+                float3 ao3     = SampleTriColor(TEXTURE2D_ARGS(_AOMap, sampler_AOMap), projP, w, tiling);
+                float  rough   = SampleTriColor(TEXTURE2D_ARGS(_RoughnessMap, sampler_RoughnessMap), projP, w, tiling).r;
                 float  ao      = ao3.r;
 
-                // same as Blender: base*AO -> mix toward white
+                // как в Blender: base*AO -> подмешать белый
                 float3 albedo = baseCol * lerp(1.0, ao, 0.7);
                 albedo = lerp(albedo, float3(1,1,1), _WhiteMix) * _Tint.rgb;
 
-                float3 normalWS = SampleTriNormal(wp, geomN, w);
+                float3 triNormal = SampleTriNormal(projP, projN, w, tiling);
+                #if defined(_OBJECT_SPACE_TRIPLANAR)
+                    // нормаль собрана в объектном пространстве — вернём её в мировое
+                    float3 normalWS = normalize(TransformObjectToWorldNormal(triNormal));
+                #else
+                    float3 normalWS = triNormal;
+                #endif
 
                 SurfaceData s = (SurfaceData)0;
                 s.albedo     = albedo;
@@ -183,7 +218,7 @@ Shader "Custom/ConcreteTriplanar"
             ENDHLSL
         }
 
-        // ---------------- Shadows ----------------
+        // ---------------- Тени ----------------
         Pass
         {
             Name "ShadowCaster"
@@ -202,6 +237,7 @@ Shader "Custom/ConcreteTriplanar"
                 float _Sharpness;
                 float4 _Tint;
                 float _VertexSnapPixels;
+                float _ObjectTiling;
             CBUFFER_END
             float3 _LightDirection;
             float3 _LightPosition;
@@ -246,6 +282,7 @@ Shader "Custom/ConcreteTriplanar"
                 float _Sharpness;
                 float4 _Tint;
                 float _VertexSnapPixels;
+                float _ObjectTiling;
             CBUFFER_END
             float4 ApplyVertexSnap(float4 positionCS)
             {
@@ -265,7 +302,7 @@ Shader "Custom/ConcreteTriplanar"
             ENDHLSL
         }
 
-        // ---------------- DepthNormals (for SSAO) ----------------
+        // ---------------- DepthNormals (для SSAO) ----------------
         Pass
         {
             Name "DepthNormals"
@@ -282,6 +319,7 @@ Shader "Custom/ConcreteTriplanar"
                 float _Sharpness;
                 float4 _Tint;
                 float _VertexSnapPixels;
+                float _ObjectTiling;
             CBUFFER_END
             float4 ApplyVertexSnap(float4 positionCS)
             {
