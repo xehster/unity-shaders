@@ -72,7 +72,7 @@ Shader "Purrfield/PS1 Lit Chromatic"
             #pragma vertex vert
             #pragma fragment frag
             #define CHROMA_SIGN 0
-            #include_with_pragmas "Assets/Shaders/PS1LitChromaticPass.hlsl"
+            #include_with_pragmas "PS1LitChromaticPass.hlsl"
             ENDHLSL
         }
 
@@ -89,7 +89,7 @@ Shader "Purrfield/PS1 Lit Chromatic"
             #pragma vertex vert
             #pragma fragment frag
             #define CHROMA_SIGN 1
-            #include_with_pragmas "Assets/Shaders/PS1LitChromaticPass.hlsl"
+            #include_with_pragmas "PS1LitChromaticPass.hlsl"
             ENDHLSL
         }
 
@@ -106,7 +106,7 @@ Shader "Purrfield/PS1 Lit Chromatic"
             #pragma vertex vert
             #pragma fragment frag
             #define CHROMA_SIGN -1
-            #include_with_pragmas "Assets/Shaders/PS1LitChromaticPass.hlsl"
+            #include_with_pragmas "PS1LitChromaticPass.hlsl"
             ENDHLSL
         }
 
