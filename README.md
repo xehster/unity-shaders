@@ -15,9 +15,10 @@ file and don't feel like cloning a whole project.
 |---|---|
 | Shader Graph | `Fire`, `Holographic` (+ `StripesHolo` subgraph), `FireParticles` |
 | PS1 look | `PS1Lit`, `PS1LitTransparent`, `PS1LitChromatic` (+ `PS1LitChromaticPass.hlsl`) |
-| Surfaces | `ConcreteTriplanar`, `GradientMap` (UGUI), `GradientMapMesh` |
-| Atmosphere | `HeightFog`, `RetroDither`, `GradientSkybox` |
-| Gameplay | `Hologram`, `MoveOutline` |
+| Surfaces | `ConcreteTriplanar`, `FrostedGlass`, `GradientMap` (UGUI), `GradientMapMesh` |
+| Atmosphere | `HeightFog`, `RetroDither`, `CrtVhs`, `GradientSkybox` |
+| Gameplay | `Hologram`, `MoveOutline`, `ForceField` |
+| Recolour | `PaletteSwap`, `PaletteSwapUI` (+ the `PaletteSwap/` textures) |
 | Particles | `FireParticleSystem` prefab and its material |
 
 ## Dropping them into a project
@@ -25,15 +26,31 @@ file and don't feel like cloning a whole project.
 Copy the files **with their `.meta`**, or Unity assigns new GUIDs and your materials lose
 track of the shader. Keep `PS1LitChromaticPass.hlsl` next to `PS1LitChromatic.shader`.
 
-Three of these do nothing on their own. `HeightFog` and `RetroDither` are full-screen
-passes and need a `FullScreenPassRendererFeature` on your renderer; `PS1LitChromatic`
-needs a `RenderObjects` feature pointed at its `PurrChromaR` and `PurrChromaB` passes.
+Four of these do nothing on their own. `HeightFog`, `RetroDither` and `CrtVhs` are
+full-screen passes and need a `FullScreenPassRendererFeature` on your renderer;
+`PS1LitChromatic` needs a `RenderObjects` feature pointed at its `PurrChromaR` and
+`PurrChromaB` passes.
 
-`GradientMap` is the odd one out: it's built on Unity's built-in UI-Default, because
-that's what a UGUI Image expects. For meshes use `GradientMapMesh`.
+`FrostedGlass` reads the scene behind it, so tick **Opaque Texture** on your URP asset or
+it comes out flat.
+
+Two are UGUI shaders built on Unity's built-in UI-Default, because that's what an Image
+expects: `GradientMap` and `PaletteSwapUI`. The mesh versions are `GradientMapMesh` and
+`PaletteSwap`.
+
+Both palette shaders want the two textures in `PaletteSwap/`. `Palettes.png` is the
+colours, one row per palette and one column per slot, and the shader reads its size from
+the texture, so add rows and columns and it follows. `PaletteIndex.png` is optional: it's
+a demo index map, where the red channel is a slot number rather than a colour. Leave
+**Source Is An Index Map** off and any ordinary texture works, keyed off its brightness.
+Both must be imported point-filtered and uncompressed, and the index map with sRGB off,
+or the numbers stop being numbers.
 
 `Hologram` and `MoveOutline` take their tint through a MaterialPropertyBlock. Without one
 they still draw, just in the default colour.
+
+`ForceField` takes impact points the same way, as a `_Hits` array of object-space
+positions with the age of each hit in `w`. Without any it's just a shield.
 
 ## License
 
