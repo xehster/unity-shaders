@@ -15,11 +15,11 @@ file and don't feel like cloning a whole project.
 |---|---|
 | Shader Graph | `Fire`, `Holographic` (+ `StripesHolo` subgraph), `FireParticles` |
 | PS1 look | `PS1Lit`, `PS1LitTransparent`, `PS1LitChromatic` (+ `PS1LitChromaticPass.hlsl`) |
-| Surfaces | `ConcreteTriplanar`, `FrostedGlass`, `GradientMap` (UGUI), `GradientMapMesh` |
+| Surfaces | `ConcreteTriplanar`, `FrostedGlass`, `InteriorMapping`, `GradientMap` (UGUI), `GradientMapMesh` |
 | Atmosphere | `HeightFog`, `RetroDither`, `CrtVhs`, `GradientSkybox` |
-| Gameplay | `Hologram`, `MoveOutline`, `ForceField` |
+| Gameplay | `Hologram`, `MoveOutline`, `ForceField`, `FlyingCrying` (+ the `FlyingCrying/` art and its baker) |
 | Recolour | `PaletteSwap`, `PaletteSwapUI` (+ the `PaletteSwap/` textures) |
-| Particles | `FireParticleSystem` prefab and its material |
+| Particles | `FireParticleSystem` and `SparkBurst`, each with its material |
 
 ## Dropping them into a project
 
@@ -46,11 +46,31 @@ a demo index map, where the red channel is a slot number rather than a colour. L
 Both must be imported point-filtered and uncompressed, and the index map with sRGB off,
 or the numbers stop being numbers.
 
+`InteriorMapping` and `FlyingCrying` want flat faces or a rounded solid, not a plane:
+both cast the view ray onward into a grid laid out over the whole surface, so they have
+nothing to say on a single quad.
+
+`FlyingCrying` covers a surface in eyes that blink out of step and follow a point. It
+reads one packed texture rather than the drawings themselves: redraw the parts in
+`FlyingCrying/Source` and run **Shader Gallery > Bake Eye Mask** to pack them again. The
+shapes live in the alpha, the lids run widest open to shut, and extra lid frames are
+picked up on their own. Point the pupils with `_LookAt`, a world position whose `w` at 0
+means watch the camera instead.
+
+The name is from KOTEK, my first game. This thing was hand drawn in 2D back then and its
+working name was flyingcrying, because it flew and it cried. The original is the avatar
+on this account.
+
 `Hologram` and `MoveOutline` take their tint through a MaterialPropertyBlock. Without one
 they still draw, just in the default colour.
 
 `ForceField` takes impact points the same way, as a `_Hits` array of object-space
 positions with the age of each hit in `w`. Without any it's just a shield.
+
+`SparkBurst` is a particle system rather than a shader: `Spark` draws the grains and the
+`SparkBurst` component next to the prefab turns speed, reach and duration into one set of
+fields, with `Fire()` for a single hit. It needs that script, so copy the three files
+together.
 
 ## License
 
