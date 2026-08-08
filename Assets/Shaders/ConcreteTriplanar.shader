@@ -18,7 +18,7 @@ Shader "Custom/ConcreteTriplanar"
         _VertexSnapPixels ("Vertex Grid Height (0 = off)", Float) = 240
 
         // Object-space mode: the texture sticks to the mesh and turns with it.
-        // Static geometry doesn't need it - world projection is seamless between objects -
+        // Static geometry doesn't need it, world projection lines up across objects,
         // but on a spinning object it's the only way to tell that it's spinning at all.
         [Toggle(_OBJECT_SPACE_TRIPLANAR)] _ObjectSpaceTriplanar ("Project in Object Space", Float) = 0
         _ObjectTiling   ("Tiling in Object Space", Float) = 6.0
