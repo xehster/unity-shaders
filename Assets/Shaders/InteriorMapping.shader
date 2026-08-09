@@ -9,7 +9,7 @@ Shader "Custom/Interior Mapping"
     // the gallery gives this one a cube: see the marker property at the bottom.
     Properties
     {
-        _Rooms ("Rooms Per Side", Range(1, 12)) = 4
+        _Rooms ("Rooms Per Side", Range(1, 100)) = 4
         _FrameWidth ("Window Frame", Range(0, 0.25)) = 0.07
         _FrameColor ("Frame Colour", Color) = (0.10, 0.10, 0.12, 1)
 
