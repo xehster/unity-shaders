@@ -1,0 +1,45 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: DropletsMaterial
+  m_Shader: {fileID: 4800000, guid: be60aaafe65df214289105e47aaee022, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords:
+  - _RELATIVEOUTLINE_ON
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs: []
+    m_Ints: []
+    m_Floats:
+    - _Bulge: 1.3
+    - _DepthBias: 0.5
+    - _Fill: 0.038
+    - _Highlight: 0.8
+    - _HighlightSize: 0.3
+    - _Outline: 4.02
+    - _Profile: 2.29
+    - _Refraction: 0
+    - _RelativeOutline: 1
+    - _Rim: 0.3
+    - _Threshold: 0.45
+    m_Colors:
+    - _FillColor: {r: 0.86477983, g: 0.95531857, b: 1, a: 1}
+    - _HighlightColor: {r: 1, g: 1, b: 1, a: 1}
+    - _OutlineColor: {r: 0.36163503, g: 0.7674526, b: 1, a: 1}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1

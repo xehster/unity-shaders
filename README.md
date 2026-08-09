@@ -19,7 +19,7 @@ file and don't feel like cloning a whole project.
 | Atmosphere | `HeightFog`, `RetroDither`, `CrtVhs`, `GradientSkybox` |
 | Gameplay | `Hologram`, `MoveOutline`, `ForceField`, `FlyingCrying` (+ the `FlyingCrying/` art and its baker) |
 | Recolour | `PaletteSwap`, `PaletteSwapUI` (+ the `PaletteSwap/` textures) |
-| Particles | `FireParticleSystem` and `SparkBurst`, each with its material |
+| Particles | `FireParticleSystem`, `SparkBurst`, `Droplets`, each with its material |
 
 ## Dropping them into a project
 
@@ -71,6 +71,21 @@ positions with the age of each hit in `w`. Without any it's just a shield.
 `SparkBurst` component next to the prefab turns speed, reach and duration into one set of
 fields, with `Fire()` for a single hit. It needs that script, so copy the three files
 together.
+
+`Droplets` is cartoon water that merges: put the component on an object, point it at a
+sphere and tears run down it, clinging to each other on the way and drawing as one shape
+under one outline. Copy `Droplets.shader`, `Droplets.cs` and the material together, and
+add `EyeSources.cs` as well if the sources should be the eyes of `FlyingCrying`.
+
+It is not a Unity ParticleSystem. Merging has to be drawn from every droplet at once, so
+they are kept in a plain list and handed to the shader as an array, up to 32 of them. That
+array is also why the outline can be shared: each droplet lays down a soft field, the
+fields add up, and the shape is the line where the sum crosses a threshold. Turn the
+bulge, refraction and highlight to zero for a bare outline and up for water.
+
+Set `Path` to `Fall` and it needs no host and no sphere, which is the mode to use anywhere
+else. It reads the depth and colour of the frame, so both **Depth Texture** and **Opaque
+Texture** want ticking on the URP asset.
 
 ## License
 
