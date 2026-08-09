@@ -17,7 +17,7 @@ file and don't feel like cloning a whole project.
 | PS1 look | `PS1Lit`, `PS1LitTransparent`, `PS1LitChromatic` (+ `PS1LitChromaticPass.hlsl`) |
 | Surfaces | `ConcreteTriplanar`, `FrostedGlass`, `DirtyGlass` (+ the `DirtyGlass/` wiping kit), `InteriorMapping`, `GradientMap` (UGUI), `GradientMapMesh` |
 | Atmosphere | `HeightFog`, `RetroDither`, `CrtVhs`, `GradientSkybox` |
-| Gameplay | `Hologram`, `MoveOutline`, `ForceField`, `FlyingCrying` (+ the `FlyingCrying/` art and its baker) |
+| Gameplay | `Hologram`, `MoveOutline`, `ForceField`, `ImpactMarks` (+ the `ImpactMarks/` driver), `FlyingCrying` (+ the `FlyingCrying/` art and its baker) |
 | Recolour | `PaletteSwap`, `PaletteSwapUI` (+ the `PaletteSwap/` textures) |
 | Particles | `FireParticleSystem`, `SparkBurst`, `Droplets`, each with its material |
 
@@ -89,6 +89,34 @@ they still draw, just in the default colour.
 
 `ForceField` takes impact points the same way, as a `_Hits` array of object-space
 positions with the age of each hit in `w`. Without any it's just a shield.
+
+`ImpactMarks` reads that same array and leaves damage where the hits landed: a punched
+hole with cracks running off it for a round, a crushed patch and a web for something
+blunt. The shapes follow how glass actually breaks, which is worth knowing before turning
+the sliders. Radial cracks come first and they run long and dead straight, because they
+follow the principal stress. The concentric ones are secondary and are **not rings**: each
+runs from one radial across to the next and stops there, at its own radius, so no two
+sectors line up. Draw them as full circles instead and every mark reads as a target. A
+round arrives at a point, so its cracks start at one; a hammer grinds a patch to powder
+first, and the cracks start at the edge of that.
+
+**View Break Up** is the one to turn up: each piece bounded by two radials and two
+concentrics gets its own small offset into the scene behind, so the view jumps between the
+pieces. That sells the break far harder than the lines do, and it needs **Opaque Texture**
+on the URP asset.
+
+**Mark Style** decides what a mark *is* and is separate from **See Through**, which
+decides what the surface is. A hole through glass and a pit in plaster are not the same
+event: on Solid the hole stops being a hole, the cracks go dark and short, and a blunt hit
+adds a dent.
+
+Hits come in through `ImpactSurface` from `ImpactMarks/`: a ring buffer of 32, aged every
+frame, with the kind, size and swing direction in a second array. Each mark's shape is
+hashed from **where it landed**, never from its slot, or recycling a slot silently
+restyles a mark already on screen. Select the object and press **Shoot it by hand** to
+click at it in the Scene view, Shift-drag to swing, or leave `autoFire` on. Marks measure
+straight-line distance from the hit, so a flat face is right and a strongly curved one
+will look odd.
 
 `SparkBurst` is a particle system rather than a shader: `Spark` draws the grains and the
 `SparkBurst` component next to the prefab turns speed, reach and duration into one set of
