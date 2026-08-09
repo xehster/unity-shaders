@@ -15,7 +15,7 @@ file and don't feel like cloning a whole project.
 |---|---|
 | Shader Graph | `Fire`, `Holographic` (+ `StripesHolo` subgraph), `FireParticles` |
 | PS1 look | `PS1Lit`, `PS1LitTransparent`, `PS1LitChromatic` (+ `PS1LitChromaticPass.hlsl`) |
-| Surfaces | `ConcreteTriplanar`, `FrostedGlass`, `InteriorMapping`, `GradientMap` (UGUI), `GradientMapMesh` |
+| Surfaces | `ConcreteTriplanar`, `FrostedGlass`, `DirtyGlass` (+ the `DirtyGlass/` wiping kit), `InteriorMapping`, `GradientMap` (UGUI), `GradientMapMesh` |
 | Atmosphere | `HeightFog`, `RetroDither`, `CrtVhs`, `GradientSkybox` |
 | Gameplay | `Hologram`, `MoveOutline`, `ForceField`, `FlyingCrying` (+ the `FlyingCrying/` art and its baker) |
 | Recolour | `PaletteSwap`, `PaletteSwapUI` (+ the `PaletteSwap/` textures) |
@@ -32,7 +32,30 @@ full-screen passes and need a `FullScreenPassRendererFeature` on your renderer;
 `PurrChromaB` passes.
 
 `FrostedGlass` reads the scene behind it, so tick **Opaque Texture** on your URP asset or
-it comes out flat.
+it comes out flat. So does `DirtyGlass`, below, whenever **See Through** is on.
+
+`DirtyGlass` is grime you can rub off. The dirt is a noise field with a moving threshold
+rather than a picture faded in and out, so at low amounts only the densest spots survive
+and they grow together as **Dirt** climbs, and 0 really is spotless. Colour takes a
+swatch and a **Colour Range** that moves hue, saturation and value together, because
+grime that only shifts hue reads as tinted plastic. Streaks, specks and the grime that
+gathers where the surface turns away are separate layers over that.
+
+Turn **See Through** off and it lights an ordinary texture instead of reading the scene,
+which is how the same dirt goes on something that isn't glass; with it on, that texture
+is still used, as a print on the pane. **Lay Dirt Out In UV** picks the domain: object
+space has no seams and no pinched poles, so leave it off for a solid and turn it on for a
+flat pane. **Use A Dirt Texture** swaps the noise for your own and keeps the rest.
+
+Wiping is `Wipeable` from `DirtyGlass/`, which owns a mask in UV space and paints brush
+dabs into it with `WipeBrush`. The shader lifts its threshold where the mask is bright,
+so a half-wiped patch thins out and breaks up instead of going evenly pale, and the fine
+noise holds the cloth back a little so grit is left along the edge of a stroke. Select
+the object and press **Wipe it by hand** to drag over it in the Scene view, or leave
+`wipeWithMouse` on for play mode; **Wash it all off** and **Dirty it up again** sit next
+to it, and `creepBack` walks the dirt back over what was cleaned. It adds a MeshCollider,
+since that is the only collider that can say which UV was clicked. Nothing in it knows
+what dirt looks like, so any shader with a mask property can be wiped the same way.
 
 Two are UGUI shaders built on Unity's built-in UI-Default, because that's what an Image
 expects: `GradientMap` and `PaletteSwapUI`. The mesh versions are `GradientMapMesh` and
