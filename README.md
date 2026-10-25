@@ -1,172 +1,331 @@
 # Unity Shaders
 
-Shaders I wrote for my own projects, kept here as plain files.
+Shaders and effects from my Unity projects. I keep the files here and try them out in
+[Shader Gallery](https://github.com/xehster/shader-gallery).
 
-If you want to see them working, they live in
-[Shader Gallery](https://github.com/xehster/shader-gallery): one Unity scene where every
-shader sits on its own sphere, with clips of each. This repo is for when you just need a
-file and don't feel like cloning a whole project.
+Unity 6 · Universal Render Pipeline · Shader Graph 17.0.3
 
-**Unity 6** · Universal Render Pipeline · Shader Graph 17.0.3
+![Shader Gallery](docs/gallery.gif)
 
-## What's here
+Recorded with the gallery's built-in GIF recorder. I haven't figured out a good way to
+show every effect in the gallery yet, so some look wrong here. A sphere doesn't do much
+for a sword or a shower of sparks. The descriptions below explain what the effects are
+meant to look like; this page covers the ones currently on display.
 
-| | |
-|---|---|
-| Shader Graph | `Fire`, `Holographic` (+ `StripesHolo` subgraph), `FireParticles` |
-| PS1 look | `PS1Lit`, `PS1LitTransparent`, `PS1LitChromatic` (+ `PS1LitChromaticPass.hlsl`) |
-| Surfaces | `ConcreteTriplanar`, `FrostedGlass`, `DirtyGlass` (+ the `DirtyGlass/` wiping kit), `InteriorMapping`, `GradientMap` (UGUI), `GradientMapMesh` |
-| Atmosphere | `HeightFog`, `RetroDither`, `CrtVhs`, `GradientSkybox` |
-| Gameplay | `Hologram`, `MoveOutline`, `ForceField`, `ImpactMarks` (+ the `ImpactMarks/` driver), `FlyingCrying` (+ the `FlyingCrying/` art and its baker) |
-| Recolour | `PaletteSwap`, `PaletteSwapUI` (+ the `PaletteSwap/` textures) |
-| Particles | `FireParticleSystem`, `SparkBurst`, `Droplets`, each with its material |
+## Surfaces
 
-## Dropping them into a project
+### PS1 Lit
 
-Copy the files **with their `.meta`**, or Unity assigns new GUIDs and your materials lose
-track of the shader. Keep `PS1LitChromaticPass.hlsl` next to `PS1LitChromatic.shader`.
+[PS1Lit.shader](Assets/Shaders/PS1Lit.shader) — vertices snap to a pixel grid and textures
+warp with perspective, with URP lighting and shadows on top. This is the base look for
+objects in Purrfield.
 
-Four of these do nothing on their own. `HeightFog`, `RetroDither` and `CrtVhs` are
-full-screen passes and need a `FullScreenPassRendererFeature` on your renderer;
-`PS1LitChromatic` needs a `RenderObjects` feature pointed at its `PurrChromaR` and
-`PurrChromaB` passes.
+### PS1 Lit Chromatic
 
-`FrostedGlass` reads the scene behind it, so tick **Opaque Texture** on your URP asset or
-it comes out flat. So does `DirtyGlass`, below, whenever **See Through** is on.
+[PS1LitChromatic.shader](Assets/Shaders/PS1LitChromatic.shader) — the PS1 material with
+red and blue fringes offset from the surface. Keep `PS1LitChromaticPass.hlsl` beside it.
+The extra colour passes need a Render Objects renderer feature using the `PurrChromaR`
+and `PurrChromaB` LightMode tags.
 
-`DirtyGlass` is grime you can rub off. The dirt is a noise field with a moving threshold
-rather than a picture faded in and out, so at low amounts only the densest spots survive
-and they grow together as **Dirt** climbs, and 0 really is spotless. Colour takes a
-swatch and a **Colour Range** that moves hue, saturation and value together, because
-grime that only shifts hue reads as tinted plastic. Streaks, specks and the grime that
-gathers where the surface turns away are separate layers over that.
+### PS1 Lit Transparent
 
-Turn **See Through** off and it lights an ordinary texture instead of reading the scene,
-which is how the same dirt goes on something that isn't glass; with it on, that texture
-is still used, as a print on the pane. **Lay Dirt Out In UV** picks the domain: object
-space has no seams and no pinched poles, so leave it off for a solid and turn it on for a
-flat pane. **Use A Dirt Texture** swaps the noise for your own and keeps the rest.
+[PS1LitTransparent.shader](Assets/Shaders/PS1LitTransparent.shader) — the transparent
+version of PS1 Lit, with the same vertex snapping and texture warp.
 
-Wiping is `Wipeable` from `DirtyGlass/`, which owns a mask in UV space and paints brush
-dabs into it with `WipeBrush`. The shader lifts its threshold where the mask is bright,
-so a half-wiped patch thins out and breaks up instead of going evenly pale, and the fine
-noise holds the cloth back a little so grit is left along the edge of a stroke. Select
-the object and press **Wipe it by hand** to drag over it in the Scene view, or leave
-`wipeWithMouse` on for play mode; **Wash it all off** and **Dirty it up again** sit next
-to it, and `creepBack` walks the dirt back over what was cleaned. It adds a MeshCollider,
-since that is the only collider that can say which UV was clicked. Nothing in it knows
-what dirt looks like, so any shader with a mask property can be wiped the same way.
+### PS1 Lit Emissive
 
-Two are UGUI shaders built on Unity's built-in UI-Default, because that's what an Image
-expects: `GradientMap` and `PaletteSwapUI`. The mesh versions are `GradientMapMesh` and
-`PaletteSwap`.
+The glowing sample uses [PS1Lit.shader](Assets/Shaders/PS1Lit.shader) too. It is a
+material setup, not another shader: the emission colour lights up the surface while
+the geometry keeps its PS1 wobble.
 
-Both palette shaders want the two textures in `PaletteSwap/`. `Palettes.png` is the
-colours, one row per palette and one column per slot, and the shader reads its size from
-the texture, so add rows and columns and it follows. `PaletteIndex.png` is optional: it's
-a demo index map, where the red channel is a slot number rather than a colour. Leave
-**Source Is An Index Map** off and any ordinary texture works, keyed off its brightness.
-Both must be imported point-filtered and uncompressed, and the index map with sRGB off,
-or the numbers stop being numbers.
+### ConcreteTriplanar
 
-`InteriorMapping` and `FlyingCrying` want flat faces or a rounded solid, not a plane:
-both cast the view ray onward into a grid laid out over the whole surface, so they have
-nothing to say on a single quad.
+[ConcreteTriplanar.shader](Assets/Shaders/ConcreteTriplanar.shader) — textured concrete
+projected from three directions, so it works on walls and awkward meshes without a UV
+unwrap. Uses colour, normal, roughness and AO maps. World projection lines up across
+objects; object projection keeps the texture attached when an object turns.
 
-`FlyingCrying` covers a surface in eyes that blink out of step and follow a point. It
-reads one packed texture rather than the drawings themselves: redraw the parts in
-`FlyingCrying/Source` and run **Shader Gallery > Bake Eye Mask** to pack them again. The
-shapes live in the alpha, the lids run widest open to shut, and extra lid frames are
-picked up on their own. Point the pupils with `_LookAt`, a world position whose `w` at 0
-means watch the camera instead.
+### PrototypeGrid
 
-The name is from KOTEK, my first game. This thing was hand drawn in 2D back then and its
-working name was flyingcrying, because it flew and it cried. The original is the avatar
-on this account.
+[PrototypeGrid.shader](Assets/Shaders/PrototypeGrid.shader) — a measuring grid for
+blockouts. The lines are drawn in the shader and keep their spacing in metres when a
+mesh is scaled. Fine divisions and heavier major lines make sizes easier to read.
+Keep `PrototypeGridInput.hlsl` and `PurrGI.hlsl` beside it.
 
-`Hologram` and `MoveOutline` take their tint through a MaterialPropertyBlock. Without one
-they still draw, just in the default colour.
+### Frosted Glass
 
-`ForceField` takes impact points the same way, as a `_Hits` array of object-space
-positions with the age of each hit in `w`. Without any it's just a shield.
+[FrostedGlass.shader](Assets/Shaders/FrostedGlass.shader) — cloudy glass that bends and
+blurs the scene behind it. Frost, grain, tint and refraction are separate controls.
+Needs **Opaque Texture** enabled on the URP asset.
 
-`ImpactMarks` reads that same array and leaves damage where the hits landed: a punched
-hole with cracks running off it for a round, a crushed patch and a web for something
-blunt. The shapes follow how glass actually breaks, which is worth knowing before turning
-the sliders. Radial cracks come first and they run long and dead straight, because they
-follow the principal stress. The concentric ones are secondary and are **not rings**: each
-runs from one radial across to the next and stops there, at its own radius, so no two
-sectors line up. Draw them as full circles instead and every mark reads as a target. A
-round arrives at a point, so its cracks start at one; a hammer grinds a patch to powder
-first, and the cracks start at the edge of that.
+### Dirty Glass
 
-**View Break Up** is the one to turn up: each piece bounded by two radials and two
-concentrics gets its own small offset into the scene behind, so the view jumps between the
-pieces. That sells the break far harder than the lines do, and it needs **Opaque Texture**
-on the URP asset.
+[DirtyGlass.shader](Assets/Shaders/DirtyGlass.shader) — dirt that builds up in patches,
+with streaks and specks on top. It can cover transparent glass or an ordinary opaque
+surface. Lowering Dirt breaks the patches apart instead of just fading the whole thing.
 
-**Mark Style** decides what a mark *is* and is separate from **See Through**, which
-decides what the surface is. A hole through glass and a pit in plaster are not the same
-event: on Solid the hole stops being a hole, the cracks go dark and short, and a blunt hit
-adds a dent.
+The `DirtyGlass/` folder contains the wiping tools. `Wipeable` paints a mask where you
+rub the surface, and dirt can slowly creep back afterwards. The component's inspector
+has Scene view controls for wiping, washing and resetting the dirt. See Through needs
+**Opaque Texture**.
 
-Hits come in through `ImpactSurface` from `ImpactMarks/`: a ring buffer of 32, aged every
-frame, with the kind, size and swing direction in a second array. Each mark's shape is
-hashed from **where it landed**, never from its slot, or recycling a slot silently
-restyles a mark already on screen. Select the object and press **Shoot it by hand** to
-click at it in the Scene view, Shift-drag to swing, or leave `autoFire` on. Marks measure
-straight-line distance from the hit, so a flat face is right and a strongly curved one
-will look odd.
+### Interior Mapping
 
-`SparkBurst` is a particle system rather than a shader: `Spark` draws the grains and the
-`SparkBurst` component next to the prefab turns speed, reach and duration into one set of
-fields, with `Fire()` for a single hit. It needs that script, so copy the three files
-together.
+[InteriorMapping.shader](Assets/Shaders/InteriorMapping.shader) — rooms behind a flat
+surface, drawn by tracing the view into a grid of interiors. The apparent depth changes
+as the camera moves. Use it on a box or building facade to get windows with depth
+without modelling each room.
 
-`Droplets` is cartoon water that merges: put the component on an object, point it at a
-sphere and tears run down it, clinging to each other on the way and drawing as one shape
-under one outline. Copy `Droplets.shader`, `Droplets.cs` and the material together, and
-add `EyeSources.cs` as well if the sources should be the eyes of `FlyingCrying`.
+### Impact Marks
 
-It is not a Unity ParticleSystem. Merging has to be drawn from every droplet at once, so
-they are kept in a plain list and handed to the shader as an array, up to 32 of them. That
-array is also why the outline can be shared: each droplet lays down a soft field, the
-fields add up, and the shape is the line where the sum crosses a threshold. Turn the
-bulge, refraction and highlight to zero for a bare outline and up for water.
+[ImpactMarks.shader](Assets/Shaders/ImpactMarks.shader) — bullet holes, crushed patches
+and cracks. Glass breaks into pieces that shift the view behind them; solid surfaces
+get dark cracks and dents instead of transparent holes.
 
-Set `Path` to `Fall` and it needs no host and no sphere, which is the mode to use anywhere
-else. It reads the depth and colour of the frame, so both **Depth Texture** and **Opaque
-Texture** want ticking on the URP asset.
+`ImpactMarks/ImpactSurface.cs` feeds the hits to the shader. Its inspector lets you
+shoot at the object in the Scene view or Shift-drag for a directional hit. The glass
+view distortion needs **Opaque Texture**. Flat surfaces suit the marks best.
 
-## Additional effects from Purrfield
+## Colour
 
-These ten shaders are packaged with their local includes under `Assets/Shaders`, so
-Shader Gallery's existing sync copies the dependencies too. Keep the `.meta` files.
-Names containing **Variant of** identify a related shader already in this library;
-the same relationship is written in the filename and the Unity shader menu name.
+### gmap (mesh)
 
-| Shader file | Setup and relationship |
-|---|---|
-| `PulseField_VariantOf_ForceField.shader` | **Variant of Force Field.** Reuses the two-sided Fresnel volume approach, replacing the hex grid and hit rings with repeating ground rings and vertical falloff. Works on a sphere; no driver required. |
-| `PrototypeGrid.shader` | Analytic triplanar measuring grid. Keep `PrototypeGridInput.hlsl` and `PurrGI.hlsl` beside it. A scaled cube shows the metre-based divisions best. |
-| `CRTScreen.shader` | A mesh screen material, distinct from the full-screen `CrtVhs` effect. Keep `StudioFx.hlsl` and `PurrMetaPass.hlsl` beside it. Set Picture (`_BaseMap`); `_Flipbook` holds columns, rows, frame count and fps. Studio globals default to zero: scanlines and flipbook work, but flicker/glitches require `_StudioFlicker`, `_StudioGlitch`, and `_StudioGlitchRate` to be set by the host application. |
-| `ElectricArc.shader` | Draws the core, glow and animated current on a `LineRenderer` strip (U along, V across). The host creates the jagged path; the shader does not create lightning geometry. Vertex alpha controls intensity. |
-| `BeamTube_VariantOf_Hologram.shader` | **Variant of Hologram**, specifically its Beam Mode. Adds tube-normal Fresnel and per-vertex colour to travelling UV pulses. Use a tube with U along its length, normals and vertex colours. |
-| `EnergyBlade.shader` | Keep `EnergySwordMesh.cs` for its specialised UV layout. `Purrfield.EnergySwordMesh.Build(grip, guardWidth, blade, bladeWidth, thickness)` returns the mesh. UV2.x identifies grip/guard/blade; UV2.y is total length. Animate `_Reveal`; `_Mode` selects water/electric/fire/air. No gameplay scripts are required. |
-| `Puddle.shader` | Use a flattened unit cylinder (object XZ radius 0.5); keep `SurfaceShape.hlsl` and `PurrGI.hlsl`. Idle water works without a driver. For footstep waves, set `_Ripples` through a MaterialPropertyBlock: eight Vector4 entries `(worldX, worldZ, ageSeconds, strength)`, advancing ages yourself and clearing unused strengths. `_Ripen` controls the portal transition, `_Charge` the bright veins. |
-| `FireGround.shader` | Same flat-cylinder convention as Puddle; keep `SurfaceShape.hlsl` and `PurrGI.hlsl`. Procedural ground embers and scorch, distinct from the texture-driven Fire graphs. `_Amount`, `_Plasma` and `_Flare` can be set directly on the material. |
-| `WallSlideSpark_VariantOf_Spark.shader` | **Variant of Spark.** Uses a streak or four-point sparkle rather than a round grain. On the particle renderer set streams in this order: Position, Color, UV, SizeXY, Speed, AgePercent, StableRandomX (TEXCOORD1 = size XY/speed/age; TEXCOORD2.x = random). Stretched billboards suit streaks; ordinary billboards suit `_EmberMode`. |
-| `UIStateTint_VariantOf_GradientMap_And_PaletteSwapUI.shader` | **Variant of GradientMap and PaletteSwapUI.** Adds saturation, brightness, active-state lift and a shape mask to UI recolouring. Works on uGUI Image/RawImage. Leave `_PaletteMap` off for standalone use; enabling it requires a global `_UIPaletteRamp` texture, with ready/lit ramps at V=0.25/0.75. |
+[GradientMapMesh.shader](Assets/Shaders/GradientMapMesh.shader) — recolours a mesh by
+mapping the source texture's brightness between shadow and light colours. Keeps the
+texture's shading and can preserve dark outlines.
 
-Importing these files does not add gallery exhibits automatically. Ordinary shaders
-are available through Rescan / Apply; line, tube, sword, floor and particle effects
-need the geometry or particle setup above. The original Purrfield gameplay controllers
-are deliberately not dependencies of this package.
+### gmap
+
+[GradientMap.shader](Assets/Shaders/GradientMap.shader) — the uGUI version of the same
+idea, for Images on a Canvas. It includes UI masking and clipping support.
+
+### Palette Swap
+
+[PaletteSwap.shader](Assets/Shaders/PaletteSwap.shader) — recolours a mesh from a palette
+texture. It can read explicit colour indices or use the brightness of an ordinary
+image. Each palette occupies one row, so switching rows changes the colour scheme.
+
+### Palette Swap (UI)
+
+[PaletteSwapUI.shader](Assets/Shaders/PaletteSwapUI.shader) — palette swapping for uGUI,
+with the same index-map and brightness modes. Both versions use the textures in
+`PaletteSwap/`. Import palettes point-filtered and uncompressed; index maps also need
+sRGB off.
+
+## Holograms and energy
+
+### Hologram
+
+[Hologram.shader](Assets/Shaders/Hologram.shader) — the placement preview in Purrfield:
+a transparent glowing outline with scrolling scanlines. Its tint tells you whether a
+machine can be placed there. A separate beam mode draws pulses along a LineRenderer.
+
+### PS1 Lit + MoveOutline
+
+[MoveOutline.shader](Assets/Shaders/MoveOutline.shader) draws a coloured rim around the
+PS1-lit object. In the game it marks movable machines and changes colour for the one
+under the crosshair. The outline follows the same vertex snapping as the surface.
+
+### Holographic
+
+[HolographicShader.shadergraph](Assets/Shaders/HolographicShader.shadergraph) — a Shader
+Graph holographic material with scrolling stripes and a glowing edge. Keep the
+`StripesHolo` subgraph with it.
+
+### Force Field
+
+[ForceField.shader](Assets/Shaders/ForceField.shader) — a transparent shield with a
+moving honeycomb pattern and a bright rim. Hits send rings out from their contact
+points. The surface wraps around the sphere without a texture seam; a script supplies
+up to four hit positions and their ages through `_Hits`.
+
+### Pulse Field — Variant of Force Field
+
+[PulseField_VariantOf_ForceField.shader](Assets/Shaders/PulseField_VariantOf_ForceField.shader)
+uses the shield's volume and rim for an aura around a robot. Rings travel outward along
+the ground and fade with height. In Purrfield the damage and repair coils use this
+same effect in different colours.
+
+### Beam Tube — Variant of Hologram
+
+[BeamTube_VariantOf_Hologram.shader](Assets/Shaders/BeamTube_VariantOf_Hologram.shader)
+is related to Hologram's beam mode. In the game it draws a cylindrical beam along a
+chain of points, with pulses running down its length, brighter edges and colour that
+can change along the beam. It needs a tube mesh with normals, vertex colours and U
+running along the length.
+
+### Electric Arc
+
+[ElectricArc.shader](Assets/Shaders/ElectricArc.shader) — lightning with a pale core,
+coloured glow and a flickering current running along it. In the game a LineRenderer's
+jagged path is rebuilt every few frames, making the bolt jump between its endpoints.
+The shader draws the light; the script supplies the path.
+
+### EnergyBlade
+
+[EnergyBlade.shader](Assets/Shaders/EnergyBlade.shader) — Purrfield's summoned energy
+sword. Energy streams from the forearm modules, then the grip, guard and blade appear
+in sequence. The blade has a near-white core and coloured edges: water ripples,
+electrical flashes, fire or flowing air. It swells during a heavy wind-up and dissolves
+when the guard drops.
+
+`EnergySwordMesh.cs` builds the sword with the UV data the shader expects. `_Reveal`
+controls its appearance, and `_Mode` chooses the element. The streams, swing trail and
+weapon behaviour belong to the game's controller.
+
+## Fire, water and particles
+
+### Fire
+
+[Fire.shadergraph](Assets/Shaders/Fire.shadergraph) — an animated fire material made in
+Shader Graph. Scrolling texture layers provide the movement and colour. This is the
+material sample on a mesh.
+
+### FireParticles
+
+[FireParticles.shadergraph](Assets/Shaders/FireParticles.shadergraph) — the fire material
+for particles, shown separately so its surface settings can be adjusted.
+
+### FireParticleSystem
+
+[FireParticleSystem.prefab](Assets/ParticleSystem/FireParticleSystem.prefab) — the actual
+particle setup using the fire material. Rising particles give the flame its shape and
+movement; the prefab and material are in `Assets/ParticleSystem/`.
+
+### FireGround
+
+[FireGround.shader](Assets/Shaders/FireGround.shader) — a patch of fire on the floor.
+It looks like hot embers and glowing cracks over a scorched surface, with an uneven
+edge fading into the ground. In Purrfield it can flare up or shift towards a purple
+plasma colour. Uses `SurfaceShape.hlsl` and `PurrGI.hlsl` on a flattened cylinder.
+
+### Puddle
+
+[Puddle.shader](Assets/Shaders/Puddle.shader) — a shallow puddle with a dark wet rim,
+sky reflections and small ripples. In the game, walking through it sends rings across
+the water. It can become electrically charged or darken and swirl into a portal.
+
+Use it on a flattened cylinder with `SurfaceShape.hlsl` and `PurrGI.hlsl`. The idle
+movement is built in; a script supplies the footstep ripples.
+
+### Spark
+
+[Spark.shader](Assets/Shaders/Spark.shader) — round spark grains with a hot core, a soft
+halo and individual flicker. It uses particle colour, age and a stable random value
+from the particle renderer.
+
+### SparkBurst
+
+[SparkBurst.prefab](Assets/ParticleSystem/SparkBurst.prefab) — the burst setup using
+Spark. The `SparkBurst` component controls speed, reach and duration, with `Fire()` for
+a single burst. Keep the prefab, script and material together.
+
+### Wall Slide Spark — Variant of Spark
+
+[WallSlideSpark_VariantOf_Spark.shader](Assets/Shaders/WallSlideSpark_VariantOf_Spark.shader)
+draws short streaks and four-point sparkles instead of round grains. In Purrfield,
+sliding along a wall throws showers of sparks from the robot's feet. Most are small
+bright dashes with gaps between them; a few burst into stars, and slower embers linger
+behind.
+
+The streaks use stretched particles, and the stars use ordinary billboards. The
+renderer needs these vertex streams in order: Position, Color, UV, SizeXY, Speed,
+AgePercent, StableRandomX.
+
+### Flying Crying
+
+[FlyingCrying.shader](Assets/Shaders/FlyingCrying.shader) covers a surface in eyes that
+blink independently and follow a point or the camera. The packed eye texture is in
+`FlyingCrying/`; its source drawings and editor baker are there too.
+
+The name comes from KOTEK, my first game, where the original was hand drawn in 2D.
+It flew and it cried. That version is still my account avatar.
+
+### Droplets
+
+[Droplets.shader](Assets/Shaders/Droplets.shader) — cartoon drops that gather, run down
+a sphere and merge under one outline before falling off. Refraction and highlights
+can make them look more like water, or be turned down for a simpler drawn shape.
+
+The component in `Assets/ParticleSystem/Droplets.cs` handles the drops; this isn't a
+Unity ParticleSystem. `EyeSources.cs` connects their starting points to Flying Crying's
+eyes. Fall mode also works without a sphere. Needs **Depth Texture** and **Opaque
+Texture** on the URP asset.
+
+## Procedural experiments
+
+These are raymarched shapes drawn inside a mesh. The object supplies the space to draw
+in; the visible shape is calculated by the shader.
+
+### 3dFractalOrganic
+
+[3DFractalOrganicShader.shader](Assets/Shaders/3DFractalOrganicShader.shader) — a dark,
+morphing body with a neon core, fused spikes and orbiting rings. The shape breathes
+and pulses; the rings and colour separation can be adjusted independently.
+
+### 3DFractalShader
+
+[3dFractalShader.shader](Assets/Shaders/3dFractalShader.shader) — a folded, morphing form
+with a dark body and glowing energy. A simpler experiment than the organic version,
+with controls for scale, folding and animation speed.
+
+### BiblicalRings_CrystalDome
+
+[BiblicalRings_SecondTry.shader](Assets/Shaders/BiblicalRings_SecondTry.shader) — rotating
+metal rings carrying eyes under shiny glass domes. The iris colours, eye count and
+inner/outer eye visibility are adjustable.
+
+### BiblicalRings_TrueDomeLenses
+
+[BiblicalRings_Ophanim_Broken.shader](Assets/Shaders/BiblicalRings_Ophanim_Broken.shader)
+— another ring-and-eye experiment, with raised lenses and concentric iris patterns.
+The old filename is still there; this version has separate controls for ring spacing,
+lens height and gloss.
+
+### CyberEntity_OriginalMaterial
+
+[MechanicalDiaphragm.shader](Assets/Shaders/MechanicalDiaphragm.shader) — a perforated
+outer shell around a moving internal mechanism and an energy core. Hole expansion
+opens the shell; inverting the holes leaves patches in place of the openings.
+
+### CyberRibbons_ComplexShell
+
+[CyberRibbons.shader](Assets/Shaders/CyberRibbons.shader) — a shell of twisted armour
+ribbons with pulsing energy. The ribbons can spread apart, change thickness and taper
+towards their tips.
+
+### CyberShell_FractalFold
+
+[DifferentCyberRibbons.shader](Assets/Shaders/DifferentCyberRibbons.shader) — a folded
+shell with glowing nodes. Complexity and fold angle change its structure; Open /
+Disassemble pulls the form apart.
+
+### FractalShader
+
+[FractalShader.shader](Assets/Shaders/FractalShader.shader) — a glowing, continuously
+inverting fractal with violet, cyan, green and pink colour changes. Repeated folds
+and twists produce the internal detail.
+
+## Behind the shelves
+
+These affect the gallery as a whole rather than occupying their own shelf slots.
+
+**[Gradient Skybox](Assets/Shaders/GradientSkybox.shader)** colours the sky with a gradient.
+**[Height Fog](Assets/Shaders/HeightFog.shader)** adds height-based haze to the scene.
+**[Retro Dither](Assets/Shaders/RetroDither.shader)** adds the dithered screen treatment.
+The latter two run as Full Screen Pass renderer features.
+
+## Using the files
+
+Copy a shader with its `.meta` and any accompanying includes, textures or components.
+The `.meta` files keep Unity's references intact. Most materials can be adjusted in
+the ordinary material inspector; effects driven by hits, particles or custom geometry
+also need the setup described above.
 
 ## License
 
-MIT, everything here is mine. Use it, change it, no attribution needed.
+MIT; see [LICENSE](LICENSE).
 
-The two `placeholder_*` textures next to the particle system are the exception. They're
-web stand-ins so the effect renders on import, not mine to license, so swap them before
-you ship anything.
+The two `placeholder_*` textures beside the particle system are web stand-ins, not
+mine to license. Replace them before shipping. The concrete textures in the gallery
+project are placeholders too and aren't covered by this repository's license.
