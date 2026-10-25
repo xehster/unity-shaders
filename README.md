@@ -138,6 +138,31 @@ Set `Path` to `Fall` and it needs no host and no sphere, which is the mode to us
 else. It reads the depth and colour of the frame, so both **Depth Texture** and **Opaque
 Texture** want ticking on the URP asset.
 
+## Additional effects from Purrfield
+
+These ten shaders are packaged with their local includes under `Assets/Shaders`, so
+Shader Gallery's existing sync copies the dependencies too. Keep the `.meta` files.
+Names containing **Variant of** identify a related shader already in this library;
+the same relationship is written in the filename and the Unity shader menu name.
+
+| Shader file | Setup and relationship |
+|---|---|
+| `PulseField_VariantOf_ForceField.shader` | **Variant of Force Field.** Reuses the two-sided Fresnel volume approach, replacing the hex grid and hit rings with repeating ground rings and vertical falloff. Works on a sphere; no driver required. |
+| `PrototypeGrid.shader` | Analytic triplanar measuring grid. Keep `PrototypeGridInput.hlsl` and `PurrGI.hlsl` beside it. A scaled cube shows the metre-based divisions best. |
+| `CRTScreen.shader` | A mesh screen material, distinct from the full-screen `CrtVhs` effect. Keep `StudioFx.hlsl` and `PurrMetaPass.hlsl` beside it. Set Picture (`_BaseMap`); `_Flipbook` holds columns, rows, frame count and fps. Studio globals default to zero: scanlines and flipbook work, but flicker/glitches require `_StudioFlicker`, `_StudioGlitch`, and `_StudioGlitchRate` to be set by the host application. |
+| `ElectricArc.shader` | Draws the core, glow and animated current on a `LineRenderer` strip (U along, V across). The host creates the jagged path; the shader does not create lightning geometry. Vertex alpha controls intensity. |
+| `BeamTube_VariantOf_Hologram.shader` | **Variant of Hologram**, specifically its Beam Mode. Adds tube-normal Fresnel and per-vertex colour to travelling UV pulses. Use a tube with U along its length, normals and vertex colours. |
+| `EnergyBlade.shader` | Keep `EnergySwordMesh.cs` for its specialised UV layout. `Purrfield.EnergySwordMesh.Build(grip, guardWidth, blade, bladeWidth, thickness)` returns the mesh. UV2.x identifies grip/guard/blade; UV2.y is total length. Animate `_Reveal`; `_Mode` selects water/electric/fire/air. No gameplay scripts are required. |
+| `Puddle.shader` | Use a flattened unit cylinder (object XZ radius 0.5); keep `SurfaceShape.hlsl` and `PurrGI.hlsl`. Idle water works without a driver. For footstep waves, set `_Ripples` through a MaterialPropertyBlock: eight Vector4 entries `(worldX, worldZ, ageSeconds, strength)`, advancing ages yourself and clearing unused strengths. `_Ripen` controls the portal transition, `_Charge` the bright veins. |
+| `FireGround.shader` | Same flat-cylinder convention as Puddle; keep `SurfaceShape.hlsl` and `PurrGI.hlsl`. Procedural ground embers and scorch, distinct from the texture-driven Fire graphs. `_Amount`, `_Plasma` and `_Flare` can be set directly on the material. |
+| `WallSlideSpark_VariantOf_Spark.shader` | **Variant of Spark.** Uses a streak or four-point sparkle rather than a round grain. On the particle renderer set streams in this order: Position, Color, UV, SizeXY, Speed, AgePercent, StableRandomX (TEXCOORD1 = size XY/speed/age; TEXCOORD2.x = random). Stretched billboards suit streaks; ordinary billboards suit `_EmberMode`. |
+| `UIStateTint_VariantOf_GradientMap_And_PaletteSwapUI.shader` | **Variant of GradientMap and PaletteSwapUI.** Adds saturation, brightness, active-state lift and a shape mask to UI recolouring. Works on uGUI Image/RawImage. Leave `_PaletteMap` off for standalone use; enabling it requires a global `_UIPaletteRamp` texture, with ready/lit ramps at V=0.25/0.75. |
+
+Importing these files does not add gallery exhibits automatically. Ordinary shaders
+are available through Rescan / Apply; line, tube, sword, floor and particle effects
+need the geometry or particle setup above. The original Purrfield gameplay controllers
+are deliberately not dependencies of this package.
+
 ## License
 
 MIT, everything here is mine. Use it, change it, no attribution needed.
